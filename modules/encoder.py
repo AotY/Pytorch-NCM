@@ -35,7 +35,8 @@ class Encoder(nn.Module):
             hidden_size=self.hidden_size,
             num_layers=config.num_layers,
             bidirectional=config.bidirectional,
-            dropout=config.dropout
+            dropout=config.dropout,
+            batch_first=True
         )
 
     def forward(self, inputs, lengths=None):
@@ -55,20 +56,20 @@ class Encoder(nn.Module):
             # restore to original indexes
             _, restore_indexes = torch.sort(sorted_indexes, dim=0)
 
-            inputs = inputs.transpose(0, 1)[sorted_indexes].transpose(0, 1)
+            inputs = inputs[sorted_indexes]
 
         # embedded
         embedded = self.embedding(inputs)
         embedded = self.dropout(embedded)
 
         if lengths is not None:
-            embedded = nn.utils.rnn.pack_padded_sequence(embedded, lengths)
+            embedded = nn.utils.rnn.pack_padded_sequence(embedded, lengths, batch_first=True)
 
         outputs, hidden_state = self.rnn(embedded)
 
         if lengths is not None:
-            outputs, _ = nn.utils.rnn.pad_packed_sequence(outputs)
-            outputs = outputs.transpose(0, 1)[restore_indexes].transpose(0, 1).contiguous()
+            outputs, _ = nn.utils.rnn.pad_packed_sequence(outputs, batch_first=True)
+            outputs = outputs[restore_indexes].contiguous()
             hidden_state = hidden_state.transpose(0, 1)[restore_indexes].transpose(0, 1).contiguous()
 
         return outputs, hidden_state

@@ -96,6 +96,7 @@ def train(epoch):
 
         # prepare data
         batch_q, batch_r, batch_q_len, batch_r_len = map(lambda x: x.to(device), batch)
+        # [batch_size, max_len]
 
         batch_r_input = batch_r[:, :-1]
         batch_r_target = batch_r[:, 1:]
@@ -103,7 +104,7 @@ def train(epoch):
         # forward
         optimizer.zero_grad()
 
-        pred = model(
+        dec_outputs = model(
             batch_q,
             batch_q_len,
             batch_r_input,
@@ -111,7 +112,7 @@ def train(epoch):
         )
 
         # backward
-        loss, n_correct = cal_performance(pred, batch_r_target, smoothing=True)
+        loss, n_correct = cal_performance(dec_outputs, batch_r_target, smoothing=True)
 
         loss.backward()
 
@@ -150,13 +151,13 @@ def eval(epoch):
             batch_r_input = batch_r[:, :-1]
             batch_r_target = batch_r[:, 1:]
 
-            pred = model(
+            dec_outputs = model(
                 batch_q,
                 batch_q_len
             )
 
             # backward
-            loss, n_correct = cal_performance(pred, batch_r_target, smoothing=True)
+            loss, n_correct = cal_performance(dec_outputs, batch_r_target, smoothing=True)
 
             # note keeping
             total_loss += loss.item()
@@ -237,6 +238,8 @@ def train_epochs():
 
 def cal_performance(pred, gold, smoothing=False):
     ''' Apply label smoothing if needed '''
+    # pred: [batch * max_len, vocab_size]
+    # gold: [batch * max_len]
 
     loss = cal_loss(pred, gold, smoothing)
 

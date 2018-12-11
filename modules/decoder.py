@@ -33,7 +33,8 @@ class Decoder(nn.Module):
             input_size=self.embedding_size,
             hidden_size=config.hidden_size,
             num_layers=config.num_layers,
-            dropout=config.dropout
+            dropout=config.dropout,
+			batch_first=True
         )
 
         self.linear = nn.Linear(config.hidden_size * 2, config.vocab_size)
@@ -47,27 +48,22 @@ class Decoder(nn.Module):
                 enc_length):
         '''
         Args:
-            dec_input: [1, batch_size] or [max_len, batch_size]
+            dec_input: [batch_size, 1] or [batch_size, max_len]
             dec_hidden: [num_layers, batch_size, hidden_size]
-            inputs_length: [batch_size, ] or [1, ]
-            h_encoder_outputs: [turn_num, batch_size, hidden_size] or [1, batch_size, hidden_size]
-            h_encoder_lengths: [batch_size]
-            f_enc_outputs: [turn_num, batch_size, hidden_size] or [1, batch_size, hidden_size]
-            f_enc_length: [batch_size]
+            inputs_length: [batch_size, ]
         '''
         # embedded
-        embedded = self.embedding(dec_input)  # [1, batch_size, embedding_size]
+        embedded = self.embedding(dec_input)  
         embedded = self.dropout(embedded)
 
-        rnn_input = torch.cat((embedded, dec_context), dim=2) # [1, batch_size, embedding_size + hidden_size]
+        rnn_input = torch.cat((embedded, dec_context), dim=2) 
         output, dec_hidden = self.rnn(rnn_input, dec_hidden)
 
-        # output: [1, batch_size, 1 * hidden_size]
         context, attn_weights = self.attn(output, enc_outputs, enc_length)
 
         output = torch.cat(output_list, dim=2)
 
-        # [1, batch_size, vocab_size]
+        # [batch_size, 1, vocab_size]
         output = self.linear(output)
 
         return output, dec_hidden , attn_weights

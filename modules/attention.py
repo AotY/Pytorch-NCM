@@ -12,7 +12,6 @@ import torch
 import torch.nn as nn
 
 from modules.utils import sequence_mask
-from modules.utils import init_linear_wt
 
 
 class Attention(nn.Module):
@@ -43,15 +42,15 @@ class Attention(nn.Module):
 
     def forward(self, output, encoder_outputs, lengths=None):
         """
-        output: maybe [r_len, batch_size, hidden_size] or [1, batch_size, hidden_size]
-        encoder_outputs: [c_len, batch_size, hidden_size]
+        output: maybe [batch_size, out_len, hidden_size] or [batch_size, 1, hidden_size]
+        encoder_outputs: [batch_size, in_len, hidden_size]
         """
 
-        output_len, batch_size, hidden_size = output.shape
-        input_size = encoder_outputs.size(0)
+        batch_size, output_len, hidden_size = output.shape
+        input_size = encoder_outputs.size(1)
 
         # (batch, out_len, hidden_size) * (batch, hidden_size, in_len) -> (batch, out_len, in_len)
-        attn = torch.bmm(output.transpose(0, 1), encoder_outputs.permute(1, 2, 0))
+        attn = torch.bmm(output, encoder_outputs.transpose(1, 2))
 
         if lengths is not None:
             mask = sequence_mask(lengths, max_len=attn.size(-1)) # mask: [batch_size, in_len]
@@ -63,7 +62,6 @@ class Attention(nn.Module):
 
         # (batch, out_len, in_len) * (batch, in_len, hidden_size) -> (batch, out_len, hidden_size)
         context = torch.bmm(attn, encoder_outputs.transpose(0, 1))
-        context = context.transpose(0, 1) #[out_len, batch_size, hidden_size]
 
         return context, attn
 

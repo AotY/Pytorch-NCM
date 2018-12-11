@@ -82,34 +82,13 @@ class NCModel(nn.Module):
         dec_hidden = self.reduce_state(enc_hidden)
 
         # decoder
-        dec_outputs = []
-        dec_output = None
-        self.update_teacher_forcing_ratio()
-        for i in range(0, enc_inputs.size(1)):
-            if i == 0:
-                input = dec_inputs[i].view(1, -1)
-            else:
-                if evaluate:
-                    input = dec_inputs[i].view(1, -1)
-                else:
-                    use_teacher_forcing = True \
-                        if random.random() < self.teacher_forcing_ratio else False
-                    if use_teacher_forcing:
-                        input = dec_inputs[i].view(1, -1)
-                    else:
-                        input = torch.argmax(
-                            dec_output, dim=2).detach().view(1, -1)
+        dec_outputs, dec_hidden, _ = self.decoder(
+            dec_inputs,
+            dec_hidden,
+            enc_outputs,
+            enc_length,
+        )
 
-            dec_output, dec_hidden, _ = self.decoder(
-                input,
-                dec_hidden,
-                enc_outputs,
-                enc_length,
-            )
-
-            dec_outputs.append(dec_output)
-
-        dec_outputs = torch.cat(dec_outputs, dim=0)
         dec_outputs = dec_outputs.view(-1, self.config.vocab_size)
         return dec_outputs
 
