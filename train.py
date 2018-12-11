@@ -11,8 +11,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data as data
+from tqdm import tqdm
 from model import NCModel
-
 from dataset import Dataset, collate_fn, prepare_datas_vocab
 from vocab import PAD_ID, SOS_ID, EOS_ID
 
@@ -23,7 +23,8 @@ parser.add_argument('--vocab_size', type=int, help='')
 parser.add_argument('--max_len', type=int, help='') # decode
 parser.add_argument('--embedding_size', type=int)
 parser.add_argument('--hidden_size', type=int)
-parser.add_argument('--bidirectional', type=store_true)
+parser.add_argument('--bidirectional', action='store_true')
+parser.add_argument('--share_embedding', action='store_true')
 parser.add_argument('--num_layers', type=int)
 parser.add_argument('--dropout', type=float)
 parser.add_argument('--teacher_forcing_ratio', type=float, default=0.5)
@@ -40,7 +41,7 @@ torch.random.manual_seed(args.seed)
 device = torch.device(args.device)
 
 # load data
-datas, vocab = prepare_datas_vocab(data_dir)
+datas, vocab = prepare_datas_vocab(args.data_dir)
 
 args.vocab_size = vocab.size
 
@@ -68,7 +69,7 @@ validation_data = data.DataLoader(
 
 # model
 model = NCModel(
-    config,
+    args,
     device
 )
 
@@ -93,7 +94,7 @@ def train():
         batch_q, batch_r, batch_r_len, batch_q_len = map(lambda x: x.to(device), batch)
 
         batch_r_input = batch_r[:, :-1]
-        batch_r_target = batch_r[:, 1:]
+        glod = batch_r[:, 1:]
 
         # forward
         optimizer.zero_grad()
@@ -101,12 +102,12 @@ def train():
         pred = model(
             batch_q,
             batch_r_input,
-            batch_r_len, 
+            batch_r_len,
             batch_q_len
         )
 
         # backward
-        loss, n_correct = cal_performance(pred, batch_r_target, smoothing=True)
+        loss, n_correct = cal_performance(pred, glod, smoothing=True)
 
         loss.backward()
 
@@ -148,7 +149,7 @@ def eval():
             pred = model(
                 batch_q,
                 batch_r_input,
-                batch_r_len, 
+                batch_r_len,
                 batch_q_len
             )
 
@@ -170,7 +171,6 @@ def eval():
 
 def train_epochs():
     ''' Start training '''
-
     log_train_file = None
     log_valid_file = None
 
