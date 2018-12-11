@@ -9,7 +9,6 @@ Tokenizer
 """
 
 import re
-import string
 from nltk.tokenize import TweetTokenizer
 
 
@@ -21,7 +20,7 @@ class Tokenizer:
         if isinstance(text, list):
             text = ' '.join(text)
 
-        tokens = self.replace_number(tokens)
+        tokens = self.clean_str(text).split()
         tokens = [token for token in tokens if len(token.split()) > 0]
         return tokens
 

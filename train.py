@@ -25,7 +25,6 @@ parser.add_argument('--max_len', type=int, help='') # decode
 parser.add_argument('--embedding_size', type=int)
 parser.add_argument('--hidden_size', type=int)
 parser.add_argument('--bidirectional', action='store_true')
-parser.add_argument('--share_embedding', action='store_true')
 parser.add_argument('--num_layers', type=int)
 parser.add_argument('--dropout', type=float)
 parser.add_argument('--teacher_forcing_ratio', type=float, default=0.5)
