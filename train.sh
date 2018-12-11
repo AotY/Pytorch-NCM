@@ -12,14 +12,14 @@ python train.py \
     --log log/ \
     --embedding_size 256 \
     --hidden_size 256 \
-    --num_layers 2 \
+    --num_layers 1 \
     --bidirectional \
-    --dropout 0.1 \
+    --dropout 0.0 \
     --teacher_forcing_ratio 1.0 \
     --clip 5.0 \
     --lr 0.0005 \
     --epochs 10 \
-    --device cpu \
-    --seed 19 \
+    --device cuda \
+    --seed 23 \
 
 /
