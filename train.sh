@@ -19,6 +19,7 @@ python train.py \
     --teacher_forcing_ratio 1.0 \
     --clip 5.0 \
     --lr 0.0005 \
+    --batch_size 16 \
     --epochs 10 \
     --device cuda \
     --seed 23 \

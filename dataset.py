@@ -81,8 +81,8 @@ def prepare_datas_vocab(data_dir):
             categories = yaml_dict['categories']
             conversations = yaml_dict['conversations']
             for conversation in conversations:
-                print('categories: ', categories)
-                print('conversation: ', conversation)
+                #  print('categories: ', categories)
+                #  print('conversation: ', conversation)
                 q = conversation[0]
                 q_tokens = tokenizer.tokenize(q)
                 freq_dict.update(q_tokens)
@@ -91,8 +91,9 @@ def prepare_datas_vocab(data_dir):
                     freq_dict.update(r_tokens)
                     datas.append((q_tokens, r_tokens))
 
-            datas.extend(conversations)
-    vocab.build_from_freq(freq_dict)
+    #  print(freq_dict)
+    freq_list = sorted(freq_dict.items(), key=lambda item: item[1], reverse=True)
+    vocab.build_from_freq(freq_list)
     np.random.shuffle(datas)
 
     return datas, vocab
