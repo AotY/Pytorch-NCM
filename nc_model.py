@@ -7,6 +7,7 @@ import torch.nn as nn
 
 from modules.encoder import Encoder
 from modules.decoder import Decoder
+from modules.reduce_state import ReduceState
 from modules.beam import Beam
 
 from misc.vocab import PAD_ID, SOS_ID, EOS_ID
@@ -21,7 +22,6 @@ class NCModel(nn.Module):
     generating responses on both conversation history and external "facts", allowing the model
     to be versatile and applicable in an open-domain setting.
     '''
-
     def __init__(self,
                  config,
                  device='cuda'):
@@ -62,19 +62,19 @@ class NCModel(nn.Module):
             self.decoder.embedding.weight = self.encoder.embedding.weight
 
     def forward(self,
-                enc_input,
+                enc_inputs,
                 enc_length,
-                dec_input,
+                dec_inputs,
                 dec_length,
                 evaluate=False):
         '''
         Args:
-            enc_input: [batch_size, max_len]
+            enc_inputs: [batch_size, max_len]
             en_length: [batch_size]
         '''
         # [max_len, batch_size, hidden_size]
         enc_outputs, enc_hidden = self.encoder(
-            enc_input,
+            enc_inputs,
             enc_length
         )
 
@@ -85,7 +85,7 @@ class NCModel(nn.Module):
         dec_outputs = []
         dec_output = None
         self.update_teacher_forcing_ratio()
-        for i in range(0, enc_input.size(1)):
+        for i in range(0, enc_inputs.size(1)):
             if i == 0:
                 input = dec_inputs[i].view(1, -1)
             else:
@@ -128,12 +128,10 @@ class NCModel(nn.Module):
     '''decode'''
 
     def decode(self,
-               enc_input,
-               enc_length,
-               dec_input,
-               dec_length):
+               enc_inputs,
+               enc_length):
         enc_outputs, enc_hidden = self.encoder(
-            enc_input,
+            enc_inputs,
             enc_length
         )
 
@@ -172,7 +170,7 @@ class NCModel(nn.Module):
             )
             input = torch.argmax(output, dim=2).detach().view(
                 1, -1)  # [1, batch_size]
-            greedy_outputs.append   input)
+            greedy_outputs.append(input)
 
             # eos problem
             #  if input[0][0].item() == EOS_ID

@@ -4,17 +4,18 @@
 #
 # Distributed under terms of the MIT license.
 
-import argparse
-import random
 import time
+import math
+import argparse
 import torch
-import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data as data
 from tqdm import tqdm
-from model import NCModel
+from nc_model import NCModel
+
 from dataset import Dataset, collate_fn, prepare_datas_vocab
-from vocab import PAD_ID, SOS_ID, EOS_ID
+from vocab import PAD_ID
 
 # Parse argument for language to train
 parser = argparse.ArgumentParser()
@@ -28,8 +29,11 @@ parser.add_argument('--share_embedding', action='store_true')
 parser.add_argument('--num_layers', type=int)
 parser.add_argument('--dropout', type=float)
 parser.add_argument('--teacher_forcing_ratio', type=float, default=0.5)
+parser.add_argument('--share_embedding', action='store_true')
+parser.add_argument('--tied', action='store_true')
 parser.add_argument('--clip', type=float, default=5.0)
 parser.add_argument('--lr', type=float, default=0.001)
+parser.add_argument('--val_split', type=float, default=0.1)
 parser.add_argument('--epochs', type=int)
 parser.add_argument('--device', type=str, help='cpu or cuda')
 parser.add_argument('--save_model', type=str, help='save model.')
@@ -43,10 +47,10 @@ device = torch.device(args.device)
 # load data
 datas, vocab = prepare_datas_vocab(args.data_dir)
 
-args.vocab_size = vocab.size
+args.vocab_size = int(vocab.size)
 
 # dataset
-validation_split = int(0.1 * len(datas))
+validation_split = int(args.val_split * len(datas))
 training_dataset = Dataset(datas[validation_split:])
 validation_dataset = Dataset(datas[:validation_split])
 
@@ -55,7 +59,7 @@ training_data = data.DataLoader(
     training_dataset,
     batch_size=args.batch_size,
     shuffle=True,
-    num_workers=4,
+    num_workers=2,
     collate_fn=collate_fn
 )
 
@@ -63,7 +67,7 @@ validation_data = data.DataLoader(
     validation_dataset,
     batch_size=args.batch_size,
     shuffle=True,
-    num_workers=4,
+    num_workers=2,
     collate_fn=collate_fn
 )
 
@@ -78,9 +82,10 @@ optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
 # train
 
-def train():
+def train(epoch):
     ''' Epoch operation in training phase'''
     model.train()
+    model.reset_teacher_forcing_ratio()
 
     total_loss = 0
     n_word_total = 0
@@ -88,26 +93,26 @@ def train():
 
     for batch in tqdm(
             training_data, mininterval=2,
-            desc='  - (Training)   ', leave=False):
+            desc=' (Training: %d) ' % epoch, leave=False):
 
         # prepare data
-        batch_q, batch_r, batch_r_len, batch_q_len = map(lambda x: x.to(device), batch)
+        batch_q, batch_r, batch_q_len, batch_r_len = map(lambda x: x.to(device), batch)
 
         batch_r_input = batch_r[:, :-1]
-        glod = batch_r[:, 1:]
+        batch_r_target = batch_r[:, 1:]
 
         # forward
         optimizer.zero_grad()
 
         pred = model(
             batch_q,
+            batch_q_len,
             batch_r_input,
-            batch_r_len,
-            batch_q_len
+            batch_r_len
         )
 
         # backward
-        loss, n_correct = cal_performance(pred, glod, smoothing=True)
+        loss, n_correct = cal_performance(pred, batch_r_target, smoothing=True)
 
         loss.backward()
 
@@ -117,7 +122,7 @@ def train():
         # note keeping
         total_loss += loss.item()
 
-        non_pad_mask = gold.ne(PAD_ID)
+        non_pad_mask = batch_r_target.ne(PAD_ID)
 
         n_word = non_pad_mask.sum().item()
 
@@ -128,7 +133,7 @@ def train():
     accuracy = n_word_correct/n_word_total
     return loss_per_word, accuracy
 
-def eval():
+def eval(epoch):
     ''' Epoch operation in evaluation phase '''
     model.eval()
 
@@ -139,17 +144,15 @@ def eval():
     with torch.no_grad():
         for batch in tqdm(
                 validation_data, mininterval=2,
-                desc='  - (Validation) ', leave=False):
+                desc=' (Validation: %d) ' % epoch, leave=False):
 
-            batch_q, batch_r, batch_r_len, batch_q_len = map(lambda x: x.to(device), batch)
+            batch_q, batch_r, batch_q_len, batch_r_len = map(lambda x: x.to(device), batch)
 
             batch_r_input = batch_r[:, :-1]
             batch_r_target = batch_r[:, 1:]
 
             pred = model(
                 batch_q,
-                batch_r_input,
-                batch_r_len,
                 batch_q_len
             )
 
@@ -159,7 +162,7 @@ def eval():
             # note keeping
             total_loss += loss.item()
 
-            non_pad_mask = gold.ne(Constants.PAD)
+            non_pad_mask = batch_r_target.ne(PAD_ID)
             n_word = non_pad_mask.sum().item()
             n_word_total += n_word
             n_word_correct += n_correct
@@ -190,15 +193,15 @@ def train_epochs():
         print('[ Epoch', epoch, ']')
 
         start = time.time()
-        train_loss, train_accu = train()
+        train_loss, train_accu = train(epoch)
 
-        print('  - (Training)   ppl: {ppl: 8.5f}, accuracy: {accu:3.3f} %, '\
+        print(' (Training)   ppl: {ppl: 8.5f}, accuracy: {accu:3.3f} %, '\
               'elapse: {elapse:3.3f} min'.format(
                   ppl=math.exp(min(train_loss, 100)), accu=100*train_accu,
                   elapse=(time.time()-start)/60))
 
         start = time.time()
-        valid_loss, valid_accu = eval()
+        valid_loss, valid_accu = eval(epoch)
         print('  - (Validation) ppl: {ppl: 8.5f}, accuracy: {accu:3.3f} %, '\
                 'elapse: {elapse:3.3f} min'.format(
                     ppl=math.exp(min(valid_loss, 100)), accu=100*valid_accu,
@@ -240,7 +243,7 @@ def cal_performance(pred, gold, smoothing=False):
 
     pred = pred.max(1)[1]
     gold = gold.contiguous().view(-1)
-    non_pad_mask = gold.ne(Constants.PAD)
+    non_pad_mask = gold.ne(PAD_ID)
     n_correct = pred.eq(gold)
     n_correct = n_correct.masked_select(non_pad_mask).sum().item()
 
@@ -260,11 +263,11 @@ def cal_loss(pred, gold, smoothing):
         one_hot = one_hot * (1 - eps) + (1 - one_hot) * eps / (n_class - 1)
         log_prb = F.log_softmax(pred, dim=1)
 
-        non_pad_mask = gold.ne(Constants.PAD)
+        non_pad_mask = gold.ne(PAD_ID)
         loss = -(one_hot * log_prb).sum(dim=1)
         loss = loss.masked_select(non_pad_mask).sum()  # average later
     else:
-        loss = F.cross_entropy(pred, gold, ignore_index=Constants.PAD, reduction='sum')
+        loss = F.cross_entropy(pred, gold, ignore_index=PAD_ID, reduction='sum')
 
     return loss
 

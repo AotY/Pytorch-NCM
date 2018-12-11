@@ -73,6 +73,8 @@ def prepare_datas_vocab(data_dir):
     datas = []
     freq_dict = Counter()
     for filename in os.listdir(data_dir):
+        if not filename.endswith('.yml'):
+            continue
         file_path = os.path.join(data_dir, filename)
         with open(file_path, 'r') as f:
             yaml_dict = yaml.load(f)
