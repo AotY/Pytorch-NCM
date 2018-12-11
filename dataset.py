@@ -34,10 +34,10 @@ class Dataset(data.Dataset):
 
 def collate_fn(batch_pair):
     ''' Pad the instance to the max seq length in batch '''
-    batch_q, batch_r = list(), list() 
+    batch_q, batch_r = list(), list()
     q_max_len, r_max_len = 0, 0
     batch_q_len, batch_r_len = list(), list()
-    for q_tokens, r_tokens in batch_pair:
+    for q_ids, r_ids in batch_pair:
         q_max_len = max(q_max_len, len(q_ids))
         r_max_len = max(r_max_len, len(r_ids))
 
@@ -67,7 +67,7 @@ def collate_fn(batch_pair):
 
 
 def prepare_datas_vocab(data_dir):
-    tokenizer = Tokenizezr()
+    tokenizer = Tokenizer()
     vocab = Vocab()
 
     datas = []
@@ -80,13 +80,16 @@ def prepare_datas_vocab(data_dir):
             yaml_dict = yaml.load(f)
             categories = yaml_dict['categories']
             conversations = yaml_dict['conversations']
-            for q, r in conversations:
+            for conversation in conversations:
+                print('categories: ', categories)
+                print('conversation: ', conversation)
+                q = conversation[0]
                 q_tokens = tokenizer.tokenize(q)
-                r_tokens = tokenizer.tokenize(r)
                 freq_dict.update(q_tokens)
-                freq_dict.update(r_tokens)
-
-                datas.append((q_tokens, r_tokens))
+                for r in conversation[1:]:
+                    r_tokens = tokenizer.tokenize(r)
+                    freq_dict.update(r_tokens)
+                    datas.append((q_tokens, r_tokens))
 
             datas.extend(conversations)
     vocab.build_from_freq(freq_dict)

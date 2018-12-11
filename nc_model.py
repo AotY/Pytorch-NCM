@@ -10,7 +10,7 @@ from modules.decoder import Decoder
 from modules.reduce_state import ReduceState
 from modules.beam import Beam
 
-from misc.vocab import PAD_ID, SOS_ID, EOS_ID
+from vocab import PAD_ID, SOS_ID, EOS_ID
 
 """
 Neural Conversation Model
