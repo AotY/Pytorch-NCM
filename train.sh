@@ -22,5 +22,8 @@ python train.py \
     --epochs 10 \
     --device cuda \
     --seed 23 \
+    --save_mode all \
+    --save_model models/ncm \
+    --smoothing \
 
 /

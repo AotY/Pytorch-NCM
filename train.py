@@ -35,7 +35,9 @@ parser.add_argument('--lr', type=float, default=0.001)
 parser.add_argument('--val_split', type=float, default=0.1)
 parser.add_argument('--epochs', type=int)
 parser.add_argument('--device', type=str, help='cpu or cuda')
-parser.add_argument('--save_model', type=str, help='save model.')
+parser.add_argument('--save_model', type=str, help='save path')
+parser.add_argument('-save_mode', type=str, choices=['all', 'best'], default='best')
+parser.add_argument('--smoothing', action='store_true')
 parser.add_argument('--log', type=str, help='save log.')
 parser.add_argument('--seed', type=str, help='random seed')
 args = parser.parse_args()
@@ -112,7 +114,7 @@ def train(epoch):
         )
 
         # backward
-        loss, n_correct = cal_performance(dec_outputs, batch_r_target, smoothing=True)
+        loss, n_correct = cal_performance(dec_outputs, batch_r_target, smoothing=args.smoothing)
 
         loss.backward()
 
@@ -157,7 +159,7 @@ def eval(epoch):
             )
 
             # backward
-            loss, n_correct = cal_performance(dec_outputs, batch_r_target, smoothing=True)
+            loss, n_correct = cal_performance(dec_outputs, batch_r_target, smoothing=False)
 
             # note keeping
             total_loss += loss.item()
@@ -224,7 +226,7 @@ def train_epochs():
                 model_name = args.save_model + '.chkpt'
                 if valid_accu >= max(valid_accus):
                     torch.save(checkpoint, model_name)
-                    print('    - [Info] The checkpoint file has been updated.')
+                    print('   - [Info] The checkpoint file has been updated.')
 
         if log_train_file and log_valid_file:
             with open(log_train_file, 'a') as log_tf, open(log_valid_file, 'a') as log_vf:
