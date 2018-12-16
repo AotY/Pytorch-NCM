@@ -52,7 +52,7 @@ class NCModel(nn.Module):
         )
 
         # encoder hidden_state -> decoder hidden_state
-        self.reduce_state = ReduceState(config.rnn_type)
+        self.reduce_state = ReduceState()
 
         # decoder
         self.decoder = Decoder(config, dec_embedding)

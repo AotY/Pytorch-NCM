@@ -61,7 +61,7 @@ class Attention(nn.Module):
         attn = torch.softmax(attn.view(-1, input_size), dim=1).view(batch_size, -1, input_size)
 
         # (batch, out_len, in_len) * (batch, in_len, hidden_size) -> (batch, out_len, hidden_size)
-        context = torch.bmm(attn, encoder_outputs.transpose(0, 1))
+        context = torch.bmm(attn, encoder_outputs)
 
         return context, attn
 

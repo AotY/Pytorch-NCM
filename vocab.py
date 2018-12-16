@@ -35,7 +35,7 @@ class Vocab(object):
     '''word to id '''
 
     def word_to_id(self, word):
-        return self.word2idx.get(word, self.unkid)
+        return self.word2idx.get(word, UNK_ID)
 
     def words_to_id(self, words):
         word_ids = [self.word_to_id(cur_word) for cur_word in words]
@@ -44,7 +44,7 @@ class Vocab(object):
     '''id to  word'''
 
     def id_to_word(self, id):
-        return self.idx2word.get(id, self.unk)
+        return self.idx2word.get(id, UNK)
 
     '''ids to word'''
     def ids_to_word(self, ids):

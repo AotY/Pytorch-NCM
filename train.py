@@ -32,6 +32,7 @@ parser.add_argument('--share_embedding', action='store_true')
 parser.add_argument('--tied', action='store_true')
 parser.add_argument('--clip', type=float, default=5.0)
 parser.add_argument('--lr', type=float, default=0.001)
+parser.add_argument('--batch_size', type=int, help='')
 parser.add_argument('--val_split', type=float, default=0.1)
 parser.add_argument('--epochs', type=int)
 parser.add_argument('--device', type=str, help='cpu or cuda')
@@ -52,8 +53,8 @@ args.vocab_size = int(vocab.size)
 
 # dataset
 validation_split = int(args.val_split * len(datas))
-training_dataset = Dataset(datas[validation_split:])
-validation_dataset = Dataset(datas[:validation_split])
+training_dataset = Dataset(datas[validation_split:], vocab)
+validation_dataset = Dataset(datas[:validation_split], vocab)
 
 # data loader
 training_data = data.DataLoader(
@@ -76,7 +77,7 @@ validation_data = data.DataLoader(
 model = NCModel(
     args,
     device
-)
+).to(device)
 
 # optimizer
 optimizer = optim.Adam(model.parameters(), lr=args.lr)
@@ -86,7 +87,7 @@ optimizer = optim.Adam(model.parameters(), lr=args.lr)
 def train(epoch):
     ''' Epoch operation in training phase'''
     model.train()
-    model.reset_teacher_forcing_ratio()
+    #  model.reset_teacher_forcing_ratio()
 
     total_loss = 0
     n_word_total = 0
@@ -99,6 +100,8 @@ def train(epoch):
         # prepare data
         batch_q, batch_r, batch_q_len, batch_r_len = map(lambda x: x.to(device), batch)
         # [batch_size, max_len]
+        #  print('batch_q: ', batch_q.shape)
+        #  print('batch_r: ', batch_r.shape)
 
         batch_r_input = batch_r[:, :-1]
         batch_r_target = batch_r[:, 1:]
@@ -155,7 +158,9 @@ def eval(epoch):
 
             dec_outputs = model(
                 batch_q,
-                batch_q_len
+                batch_q_len,
+                batch_r_input,
+                batch_r_len
             )
 
             # backward
@@ -180,8 +185,8 @@ def train_epochs():
     log_valid_file = None
 
     if args.log:
-        log_train_file = args.log + '.train.log'
-        log_valid_file = args.log + '.valid.log'
+        log_train_file = args.log + 'train.log'
+        log_valid_file = args.log + 'valid.log'
 
         print('[Info] Training performance will be written to file: {} and {}'.format(
             log_train_file, log_valid_file))

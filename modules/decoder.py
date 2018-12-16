@@ -12,6 +12,8 @@ import torch
 import torch.nn as nn
 
 from modules.attention import Attention
+from modules.utils import init_linear_wt
+
 
 
 class Decoder(nn.Module):
@@ -53,15 +55,14 @@ class Decoder(nn.Module):
             inputs_length: [batch_size, ]
         '''
         # embedded
-        embedded = self.embedding(dec_input)  
+        embedded = self.embedding(dec_input)
         embedded = self.dropout(embedded)
 
-        rnn_input = torch.cat((embedded, dec_context), dim=2) 
-        output, dec_hidden = self.rnn(rnn_input, dec_hidden)
+        output, dec_hidden = self.rnn(embedded, dec_hidden)
 
         context, attn_weights = self.attn(output, enc_outputs, enc_length)
 
-        output = torch.cat(output_list, dim=2)
+        output = torch.cat((output, context), dim=2)
 
         # [batch_size, 1, vocab_size]
         output = self.linear(output)
